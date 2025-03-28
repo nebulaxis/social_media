@@ -2,8 +2,10 @@ package com.social.media.controller;
 
 import org.springframework.web.bind.annotation.RestController;
 
+import com.social.media.exception.UserException;
 import com.social.media.models.User;
 import com.social.media.repository.UserRepository;
+import com.social.media.service.UserService;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.PutMapping;
 
 
@@ -29,26 +32,17 @@ public class UserController {
     @Autowired
     UserRepository userRepository;
 
-    @PostMapping("/users")
-    public User createUser(@RequestBody User user){
-       User newUser=new User();
-       newUser.setEmail(user.getEmail());
-       newUser.setFirstName(user.getFirstName());
-       newUser.setLastName(user.getLastName());
-       newUser.setPassword(user.getPassword());
-       newUser.setId(user.getId());
+    @Autowired
+    UserService userService;
 
-      User savedUser = userRepository.save(newUser);
-        return savedUser;
 
-    }
 
 
 
 
     
 
-@GetMapping("/users")
+@GetMapping("/api/users")
     public List<User> getUsers(){
 
         List<User> users = userRepository.findAll();
@@ -57,73 +51,59 @@ public class UserController {
         return users;
     }
 
+    
+    @GetMapping("/api/users/{userId}")
+    public User getUsersById(@PathVariable("userId")Integer id)throws UserException{
 
-    @GetMapping("/users/{userId}")
-    public User getUsersById(@PathVariable("userId")Integer id)throws Exception{
+      User user=userService.findUserById(id);
+        return user;
+    }
+
+
+
+   
+
+   
+
+@PutMapping("/api/users")
+
+    public User updateUser(@RequestHeader("Authorization")String jwt, @RequestBody User user )throws UserException{
+        
+
+        User reqUser = userService.findUserByJwt(jwt);
+      User updatedUser = userService.updateUser(user, reqUser.getId());
+      return updatedUser;
+    }
+
+
+
+    @PutMapping("/users/follow/{userId2}")
+
+ 
+    public User followUserHandler(@RequestHeader("Authorization")String jwt, @PathVariable Integer userId2) throws UserException{
+       
+        User reqUser= userService.findUserByJwt(jwt);
+        User user = userService.followUser(reqUser.getId(), userId2);
+       
+
+      
+        return user;
+    }
+
+    @GetMapping("/api/users/search")
+    public List<User> searchUser(@RequestParam("query") String query) {
+        return userService.searchUser(query);
 
        
-     Optional<User> user = userRepository.findById(id);
-       if(user.isPresent()){
-        return user.get();
-       }
-
-        throw new Exception("user not exist with userId" + id );
-        
     }
 
+    @GetMapping("/api/users/profile")
 
-   
+    public User getUserFromToken(@RequestHeader("Authorization")String jwt){
+      User user=userService.findUserByJwt(jwt);
 
-   
-
-@PutMapping("/users/{userId}")
-
-    public User updateUser(@RequestBody User user , @PathVariable Integer userId){
-        
-
-      Optional<User> user1= userRepository.findById(userId);
-      
-           
-
-
-             
-    if (user1.isEmpty()) {
-        throw new RuntimeException("User not found with userId " + userId);
+      user.setPassword(null);
+        return user; 
     }
-
-
-    User oldUser = user1.get();
-
     
-if(user.getFirstName()!=null){
-    oldUser.setFirstName(user.getFirstName());
-}
-if(user.getLastName()!=null){
-    oldUser.setLastName(user.getLastName());
-}
-if(user.getEmail()!=null){
-    oldUser.setEmail(user.getEmail());
-}
-if(user.getPassword()!=null){
-    oldUser.setPassword(user.getPassword());
-}
-
-User updatedUser = userRepository.save(oldUser);
-
-
-        return updatedUser;
-    }
-
-@DeleteMapping("/users/{userId}")
-    public String deleteUser(@PathVariable ("userId") Integer userId) throws Exception{
-
-        Optional<User> user = userRepository.findById(userId);
-
-      if(user.isEmpty()){
-        throw new Exception("user not found with userId" + userId);
-      }
-        userRepository.delete(user.get());
-
-        return "user deleted successfully with id "+ userId;
-    }
 }
